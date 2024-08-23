@@ -2,7 +2,7 @@
 
     <PropertyGroup>
       <OutputType>Library</OutputType>
-      <TargetFramework>netstandard2.0</TargetFramework>
+      <TargetFramework>netstandard2.1</TargetFramework>
       <BaseOutputPath>bin\</BaseOutputPath>
     </PropertyGroup>
 
@@ -20,35 +20,24 @@
       </Content>
     </ItemGroup>
 
-    <ItemGroup>
-      <Reference Include="Newtonsoft.Json">
-        <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\Newtonsoft.Json.dll</HintPath>
-      </Reference>
-      <Reference Include="Serilog">
-        <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\Serilog.dll</HintPath>
-      </Reference>
-      <Reference Include="Serilog.Extensions.Logging">
-        <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\Serilog.Extensions.Logging.dll</HintPath>
-      </Reference>
-      <Reference Include="Serilog.Settings.Configuration">
-        <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\Serilog.Settings.Configuration.dll</HintPath>
-      </Reference>
-      <Reference Include="Serilog.Sinks.Console">
-        <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\Serilog.Sinks.Console.dll</HintPath>
-      </Reference>
-      <Reference Include="Serilog.Sinks.File">
-        <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\Serilog.Sinks.File.dll</HintPath>
-      </Reference>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Sinks.ElasticSearch" Version="9.0.0" />
+    <PackageReference Include="Serilog.Formatting.Compact" Version="2.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
       <Reference Include="ThinkIQ.DataManagement">
         <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\ThinkIQ.DataManagement.dll</HintPath>
       </Reference>
       <Reference Include="ThinkIQ.Utils">
         <HintPath>..\..\..\..\Program Files\ThinkIQ\SouthBridgeService\ThinkIQ.Utils.dll</HintPath>
       </Reference>
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Update="NETStandard.Library" Version="2.0.0" />
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
