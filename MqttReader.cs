@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using ThinkIQ.DataManagement;
 using Newtonsoft.Json.Linq;
 using System.Text;
+using Microsoft.Extensions.Primitives;
 
 namespace SmipMqttConnector
 {
@@ -16,6 +17,8 @@ namespace SmipMqttConnector
         /// </summary>
         internal IDictionary<string, ITag> _tagDict { get; set; }
         internal int SouthBridgeReads = 0;
+
+        internal static Dictionary<string, int> _dictFilesToDelete = new Dictionary<string, int>();
 
         /// <summary>
         /// Constructor, creates a new Reader to service a specific list of tags
@@ -66,7 +69,7 @@ namespace SmipMqttConnector
 
                         Log.Debug("MQTT Adapter: Loading cached payload from: " + usePath);
                         Log.Debug("MQTT Adapter: Payload data member: " + usePayload);
-                        var useValue = parseJsonPayloadForKey(usePayload, usePath);
+                        var useValue = parseJsonPayloadForKey(usePayload, usePath, true);
                         if (useValue != null)
                         {
                             Log.Debug("MQTT Adapter: Parsed data member value: " + useValue);
@@ -85,7 +88,8 @@ namespace SmipMqttConnector
                     Log.Debug("MQTT Adapter: Loading cached payload from: " + usePath);
                     try {
                         //TODO: Probably should use a StreamReader here for safety
-                        string useValue = File.ReadAllText(usePath);
+                        // string useValue = File.ReadAllText(usePath);
+                        string useValue = File_ReadAllText(usePath, true);
                         Log.Debug("MQTT Adapter: Single datapoint value: " + useValue);
 
                         //Prep data for SMIP
@@ -104,13 +108,102 @@ namespace SmipMqttConnector
                 if (SouthBridgeReads >= MqttConnector.SouthBridgeMaxLife)
                 {
                     Log.Information("South Bridge Reaper firing at MaxLife of " + MqttConnector.SouthBridgeMaxLife);
-                    MqttConnector.CycleSouthBridgeService();
+                    // MqttConnector.CycleSouthBridgeService();
                     SouthBridgeReads = 0;
                 }
                 SouthBridgeReads++;
             }
+
+            // Cleanup Files
+            DeleteAllFiles();
+
             //return the list of new ItemData points
             return newData;
+        }
+
+        /// <summary>
+        /// File_ReadAllText - Replaces File.ReadAllText, which cannot open files that other processes are using. 
+        /// </summary>
+        /// <param name="strPath"></param>
+        /// <returns></returns>
+        public static string File_ReadAllText(string strPath, bool bDeleteAfterRead)
+        {
+            string strOutput;
+            var fs = new FileStream(strPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var sr = new StreamReader(fs, Encoding.Default);
+            { 
+                strOutput = sr.ReadToEnd();
+            }
+            sr.Close();
+            sr.Dispose();
+            fs.Close();
+            fs.Dispose();
+
+            if (bDeleteAfterRead)
+            {
+                File_AddToDeleteFilesList(strPath);
+            }
+
+
+            return strOutput;
+        }
+
+        private static bool File_AddToDeleteFilesList (string strPath)
+        {
+            if (_dictFilesToDelete.ContainsKey(strPath))
+            {
+                int count = _dictFilesToDelete[strPath];
+                _dictFilesToDelete[strPath] = count + 1;
+            }
+            else
+            {
+                _dictFilesToDelete.Add(strPath, 1);
+            }
+            return true;
+        }
+
+        private static void DeleteAllFiles()
+        { 
+            int cRetry=3;
+            foreach (KeyValuePair<string,int> kvp in _dictFilesToDelete)
+            {
+                string strPath = kvp.Key;
+                int cTagsInFile = kvp.Value;
+                bool bTryAgain = true;
+                string strFileName = Path.GetFileName(strPath);
+                string strOriginalTag = strFileName.Replace(".txt", "");
+                try
+                {
+                    strOriginalTag = MqttConnector.Base64Decode(strOriginalTag);
+                }
+                catch { }
+                for (int iRetry = cRetry; iRetry > 0 && bTryAgain; iRetry--)
+                {
+                    try
+                    {
+                        File.Delete(strPath);
+                        // Log.Information($"MQTT Adapter: Deleted file {strPath} -- return = {iRetry}. Used in {cTagsInFile} tags.");
+                    }
+                    catch
+                    {
+                        Log.Information($"MQTT Adapter: *** Error *** trying to delete file {strPath} -- return = {iRetry}. Used in {cTagsInFile} tags. Original Tag = {strOriginalTag}");
+                        System.Threading.Thread.Sleep(25);
+                    }
+
+                    bTryAgain = File.Exists(strPath);
+                    if (bTryAgain)
+                    {
+                        System.Threading.Thread.Sleep(25);
+                    }
+                    else
+                    {
+                        Log.Information($"MQTT Adapter: Deleted file {strPath} -- return = {iRetry}. Used in {cTagsInFile} tags. Original Tag = {strOriginalTag}");
+                    }
+                }
+            }
+
+
+            return;
         }
 
         //TODO: The Mqtt Service only preserves the last payload right now, so historical reads and live data reads are the same
@@ -128,20 +221,29 @@ namespace SmipMqttConnector
             return ReadRaw(startTime, endTime);
         }
 
-        private string parseJsonPayloadForKey(string compoundKey, string payloadPath)
+        private string parseJsonPayloadForKey(string compoundKey, string payloadPath, bool bDeleteAfterRead)
         {
+            String strReturnValue = String.Empty;
             try {
                 compoundKey = compoundKey.Replace("/", ".");
-                using (StreamReader file = File.OpenText(payloadPath))
-                using (JsonTextReader reader = new JsonTextReader(file))
+                StreamReader file = File.OpenText(payloadPath);
+                JsonTextReader reader = new JsonTextReader(file);
+                JObject payloadObj = (JObject)JToken.ReadFrom(reader);
+                Log.Debug("MQTT Adapter: Parsed stored payload: " + Newtonsoft.Json.JsonConvert.SerializeObject(payloadObj));
+                strReturnValue = (string)payloadObj.SelectToken(compoundKey);
+
+                reader.Close();
+                file.Close();
+                file.Dispose();
+
+                if (bDeleteAfterRead)
                 {
-                    JObject payloadObj = (JObject)JToken.ReadFrom(reader);
-                    Log.Debug("MQTT Adapter: Parsed stored payload: " + Newtonsoft.Json.JsonConvert.SerializeObject(payloadObj));
-                    var value = (string)payloadObj.SelectToken(compoundKey);
-                    return value;
+                    File_AddToDeleteFilesList(payloadPath);
                 }
-            } 
-            catch(Exception ex) {
+                return strReturnValue;
+
+            }
+            catch (Exception ex) {
                 Log.Warning("MQTT Adapter: A MQTT payload could not be loaded or parsed, data will be skipped, but processing should be able to continue.");
                 Log.Warning(ex.Message);
             }

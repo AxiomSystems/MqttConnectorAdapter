@@ -3,6 +3,7 @@
     <PropertyGroup>
       <OutputType>Library</OutputType>
       <TargetFramework>netstandard2.1</TargetFramework>
+      <AssemblyName>ThinkIQ.Mqtt.Connector</AssemblyName>
       <BaseOutputPath>bin\</BaseOutputPath>
     </PropertyGroup>
 

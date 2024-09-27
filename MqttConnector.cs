@@ -146,10 +146,10 @@ namespace SmipMqttConnector
                 _lastTagDict = newTagDict;
                 Log.Information("MQTT Adapter: Returning only new tag list, " + diffTagDict.Count);
                 Newtonsoft.Json.JsonConvert.SerializeObject(_lastTagDict);
-                if (diffTagDict.Count > 0)
-                {
-                    Task.Run(() => CycleSouthBridgeService());
-                }
+                //if (diffTagDict.Count > 0)
+                //{
+                //    Task.Run(() => CycleSouthBridgeService());
+                //}
                 return diffTagDict;
             } else
             {
@@ -236,33 +236,33 @@ namespace SmipMqttConnector
             //Perform any necessary disconnect actions for your data source
         }
 
-        [Obsolete("This method should not be necessary, but the Cloud doesn't update otherwise. Need to use until fixed.")]
-        public static async void CycleSouthBridgeService()
-        {
-            Log.Warning("MQTT Adapter: SouthBridge Service will be cycled to force tag reload");
-            Thread.Sleep(SouthBridgeCycleTime * 2);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                System.Diagnostics.Process p = new System.Diagnostics.Process();
-                Log.Warning("MQTT Adapter: SouthBridge Service stopping.");
-                p.StartInfo.FileName = "net stop ThinkIQ.SouthBridge.Service";
-                p.StartInfo.UseShellExecute = true;
-                p.Start();
-                Thread.Sleep(SouthBridgeCycleTime);
-                Log.Warning("MQTT Adapter: SouthBridge Service starting.");
-                p.StartInfo.FileName = "net start ThinkIQ.SouthBridge.Service";
-                p.StartInfo.UseShellExecute = true;
-                p.Start();
-            }
-            else
-            {
-                System.Diagnostics.Process p = new System.Diagnostics.Process();
-                Log.Warning("MQTT Adapter: SouthBridge Service cycling now.");
-                p.StartInfo.FileName = Path.Combine(MqttConnector.FindDataRoot(), "southbridge-cycle.sh");
-                p.StartInfo.UseShellExecute = true;
-                p.Start();
-            }
-        }
+        //[Obsolete("This method should not be necessary, but the Cloud doesn't update otherwise. Need to use until fixed.")]
+        //public static async void CycleSouthBridgeService()
+        //{
+        //    Log.Warning("MQTT Adapter: SouthBridge Service will be cycled to force tag reload");
+        //    Thread.Sleep(SouthBridgeCycleTime * 2);
+        //    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        //    {
+        //        System.Diagnostics.Process p = new System.Diagnostics.Process();
+        //        Log.Warning("MQTT Adapter: SouthBridge Service stopping.");
+        //        p.StartInfo.FileName = "net stop ThinkIQ.SouthBridge.WindowsService";
+        //        p.StartInfo.UseShellExecute = true;
+        //        p.Start();
+        //        Thread.Sleep(SouthBridgeCycleTime);
+        //        Log.Warning("MQTT Adapter: SouthBridge Service starting.");
+        //        p.StartInfo.FileName = "net start ThinkIQ.SouthBridge.WindowsService";
+        //        p.StartInfo.UseShellExecute = true;
+        //        p.Start();
+        //    }
+        //    else
+        //    {
+        //        System.Diagnostics.Process p = new System.Diagnostics.Process();
+        //        Log.Warning("MQTT Adapter: SouthBridge Service cycling now.");
+        //        p.StartInfo.FileName = Path.Combine(MqttConnector.FindDataRoot(), "southbridge-cycle.sh");
+        //        p.StartInfo.UseShellExecute = true;
+        //        p.Start();
+        //    }
+        //}
 
         public static string FindDataRoot()
         {
@@ -275,7 +275,7 @@ namespace SmipMqttConnector
                 }
                 else
                 {
-                    dataRoot = "/opt/thinkiq/DataRoot";
+                    dataRoot = "/opt/thinkiq-mqtt/DataRoot";
                     Log.Information("MQTT Adapter: starting on *nix with data root: " + dataRoot);
                 }
             }
@@ -286,6 +286,12 @@ namespace SmipMqttConnector
         {
             var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
             return System.Convert.ToBase64String(plainTextBytes);
+        }
+
+        public static string Base64Decode(string plainText)
+        {
+            var encodedbytes = System.Convert.FromBase64String(plainText);
+            return System.Text.Encoding.UTF8.GetString(encodedbytes);
         }
     }
 }
